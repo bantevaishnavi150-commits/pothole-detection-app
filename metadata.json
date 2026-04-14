@@ -1,0 +1,6 @@
+{
+  "name": "PotholeGuard AI",
+  "description": "AI-powered road damage detection and navigation system to help users avoid potholes and find safer routes.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["AI Image Analysis", "Real-time Navigation", "User Authentication"]
+}

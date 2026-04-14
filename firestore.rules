@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: detections
+    // Document ID: detectionId
+    // Fields:
+    //   - userId: string (required, owner)
+    //   - imageUrl: string (required)
+    //   - timestamp: timestamp (required)
+    //   - location: map (lat: number, lng: number)
+    //   - potholes: list of maps (confidence: number, box2d: list)
+    //   - severity: string (low, medium, high, critical)
+    //
+    // Collection: routes
+    // Document ID: routeId
+    // Fields:
+    //   - userId: string (required, owner)
+    //   - startLocation: string (required)
+    //   - endLocation: string (required)
+    //   - timestamp: timestamp (required)
+    //   - avoidedPotholes: bool
+    //   - distance: number
+    //   - duration: number
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "bantevaishnavi150@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             (data.displayName is string || !('displayName' in data)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidDetection(data) {
+      return data.userId == request.auth.uid &&
+             data.imageUrl is string &&
+             data.timestamp is timestamp &&
+             data.potholes is list;
+    }
+
+    function isValidRoute(data) {
+      return data.userId == request.auth.uid &&
+             data.startLocation is string &&
+             data.endLocation is string &&
+             data.timestamp is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    match /detections/{detectionId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidDetection(request.resource.data);
+      allow update: if isDocOwner() && isValidDetection(request.resource.data) &&
+                      request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    match /routes/{routeId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidRoute(request.resource.data);
+      allow update: if isDocOwner() && isValidRoute(request.resource.data) &&
+                      request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner() || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

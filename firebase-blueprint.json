@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Detection": {
+      "title": "Detection",
+      "description": "Pothole detection result",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "potholes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "confidence": { "type": "number" },
+              "box2d": { "type": "array", "items": { "type": "number" } }
+            }
+          }
+        },
+        "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+      },
+      "required": ["userId", "timestamp", "potholes"]
+    },
+    "Route": {
+      "title": "Route",
+      "description": "Navigated route history",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "startLocation": { "type": "string" },
+        "endLocation": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "avoidedPotholes": { "type": "boolean" },
+        "distance": { "type": "number" },
+        "duration": { "type": "number" }
+      },
+      "required": ["userId", "startLocation", "endLocation", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/detections/{detectionId}": {
+      "schema": "Detection",
+      "description": "History of road damage detections"
+    },
+    "/routes/{routeId}": {
+      "schema": "Route",
+      "description": "History of navigated routes"
+    }
+  }
+}
